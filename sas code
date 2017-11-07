@@ -20,7 +20,7 @@ var area;
 run;
 
 data ff_a;
-set ff ;
+set ff (where=(area>0) ;
 area_sqrt=sqrt(area);
 run;
 
@@ -28,10 +28,14 @@ proc print data=ff_a;
 title "area_sqrt added";
 run;
 
+proc univariate data=ff_a noprint;
+histogram area;
+title "area histogram (area>0)";
+run;
 
-proc univariate data=ff_a; 
+proc univariate data=ff_a noprint; 
 histogram area_sqrt;
-title "area histogram 2 (area sqrt)";
+title "area histogram 2 (area sqrt, area>0)";
 run;
 
 /*Can we build a regression model that takes into account this excessive number of zeroes? In the original
@@ -272,6 +276,7 @@ PROC SQL;
 CREATE TABLE residual_2 as
 SELECT * FROM residual, estcoeff_1;
 QUIT;
+ 
 PROC PRINT DATA=residual_2;
 TITLE 'Regression of area on continuous var - Residual & regression coefficient';
 RUN;
@@ -415,3 +420,8 @@ run;
 /*how can we see the data of influential points in the web? -> by looking cookd and leverage point*/
 /*test normality of the data at the last? -> graph is given  no worry */
 /*multicollinearity test have a look above set.*/
+
+proc univariate data=ff_a noprint; 
+histogram area_sqrt;
+title "area histogram 2 (area sqrt)";
+run;
