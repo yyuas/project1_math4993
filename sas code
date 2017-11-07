@@ -1,0 +1,312 @@
+filename indata1 "\\Vdidrive\myhome\yyuas\Downloads\forestfires_data.txt";
+/*spatial information-> x and y, temporal information-> month, day, fwi index -> ffmc, dmc, dc, isi, meteorological information-> temp, rh, wind, rain, area-> area*/
+data ff;
+infile indata1 expandtabs firstobs=2;
+input X Y month $ day $ FFMC DMC DC ISI temp RH wind rain area;
+obs=_N_;
+logarea=log(area+1);
+RUN;
+
+/*histogram*/
+proc univariate data=ff noprint;
+histogram area;
+title "area histogram";
+run;
+/*48% of time there is no obs of a forest fire. 
+This makes sense since there should be a +ve prob that no forest fires are triggered at the time of obs.
+Then, let us take a look t the dist of areas that are not trivial. There is a clear right skewness and hence we try a log transformation.*/
+proc univariate data=ff freq;
+var area;
+run;
+
+data ff_a;
+set ff ;
+area_sqrt=sqrt(area);
+run;
+
+proc print data=ff_a;
+title "area_sqrt added";
+run;
+
+
+proc univariate data=ff_a; 
+histogram area_sqrt;
+title "area histogram 2 (area sqrt)";
+run;
+
+/*Can we build a regression model that takes into account this excessive number of zeroes? In the original
+paper the authors proposed to transform the responses using ln(y+1). But that does not solve the
+problem, as can be seen below*/
+
+proc univariate data=ff;
+histogram logarea;
+title "area histogram 3 (log(area+1))";
+run;
+
+/*Moreover, we personally think the transformation itself makes no sense since under such transformation y
+can be smaller than 0. We think the best model to solve this type of problems is the zeroinflation. However we will simply proceed with the
+multiple linear regression approach. But we will only focus on a subset of the data where areas are above
+zero. In other words, we will try to predict the area of the forest fires given that there is indeed a forest fire
+going on*/
+
+data ff_b;
+set ff (where=(area>0));
+logareap=log(area);
+X_character=PUT(X,7.);
+drop X;
+rename X_character=X;
+Y_character=PUT(Y,7.);
+drop Y;
+rename Y_character=Y;
+
+run;
+
+proc print data=ff_b;
+run;
+proc sort data=ff_b;
+by X;
+RUN;
+
+proc boxplot data=ff_b;
+title "boxplot : area for different X";
+plot logareap*X;
+run;
+
+proc sort data=ff_b;
+by Y;
+run;
+
+proc boxplot data=ff_b;
+title "boxplot : area for different Y";
+plot logareap*Y;
+run;
+
+proc sort data=ff_b;
+by month;
+run;
+
+proc boxplot data=ff_b;
+title "boxplot : area for different month";
+plot logareap*month;
+run;
+
+proc freq data=ff;
+tables month;
+run;
+
+/*So the numbers of observations fall into every months are very unbalanced. In fact many months only
+have few observations. This introduce a great risk of overfitting. Hence we recode the month predictor into a
+categorical predictor of different seasons.*/
+data ff_c;
+set ff;
+if month="jan" then do; month=1;end;
+if month="feb" then do; month=2;end;
+if month="mar" then do; month=3;end;
+if month="apr" then do; month=4;end;
+if month="may" then do; month=5;end;
+if month="jun" then do; month=6;end;
+if month="jul" then do; month=7;end;
+if month="aug" then do; month=8;end;
+if month="sep" then do; month=9;end;
+if month="oct" then do; month=10;end;
+if month="nov" then do; month=11;end;
+if month="dec" then do; month=12;end;
+run;
+
+DATA ff_d;
+SET ff_c;
+RETAIN season 'abcdefgh';
+IF (month=12|month=1|month=2) THEN do; season=4; end;
+IF (month=3|month=4|month=5) THEN do; season=1; end;
+IF (month=6|month=7|month=8) THEN do; season=2; end;
+IF (month=9|month=10|month=11) THEN do; season=3; end;
+run;
+
+DATA ff_e;
+set ff_d (where=(area>0));
+logareap=log(area);
+run;
+
+proc print data=ff_e;
+run;
+
+proc sort data=ff_e;
+by season;
+run;
+
+proc boxplot data=ff_e;
+title "boxplot : forest fire area for different seasons";
+plot logareap*season;
+run;
+
+proc glm data=ff_e;
+class season;
+model logareap=season / solution ss3 ;
+title " log(area) ~ season";
+run;
+
+/*Now we seem to find some evididence that summer might tend to have less severe forest fires, probabliy
+due to the high humidity. This suggest that we should include season as a predictor in the model.*/
+
+proc sort data=ff_e;
+by day;
+run;
+
+proc boxplot data=ff_e;
+title "boxplot : forest fire area for different days";
+plot logareap*day;
+run;
+
+
+proc glm data=ff_e;
+class day;
+model logareap=day / solution ss3 ;
+title " log(area) ~ day";
+run;
+
+/*We seem to have some very mild evidence that Saturday tend to have more severe forest fires probably
+because of the increased human activities during weekends. We should also include day as a predictor.*/
+
+
+proc sort data=ff_e;
+by FFMC;
+RUN;
+
+proc boxplot data=ff_e;
+title "boxplot : forest fire area for different ffmc";
+plot logareap*FFMC;
+run;
+
+proc sort data=ff_e;
+by DMC;
+RUN;
+
+proc boxplot data=ff_e;
+title "boxplot : forest fire area for different DMC";
+plot logareap*DMC;
+run;
+
+proc sort data=ff_e;
+by DC;
+RUN;
+
+proc boxplot data=ff_e;
+title "boxplot : forest fire area for different DC";
+plot logareap*DC;
+run;
+
+proc sort data=ff_e;
+by ISI;
+RUN;
+
+proc boxplot data=ff_e;
+title "boxplot : forest fire area for different ISI";
+plot logareap*ISI;
+run;
+
+proc sort data=ff_e;
+by temp;
+RUN;
+
+proc boxplot data=ff_e;
+title "boxplot : forest fire area for different temp";
+plot logareap*temp;
+run;
+
+proc sort data=ff_e;
+by RH;
+RUN;
+
+proc boxplot data=ff_e;
+title "boxplot : forest fire area for different RH";
+plot logareap*RH;
+run;
+
+proc sort data=ff_e;
+by wind;
+RUN;
+
+proc boxplot data=ff_e;
+title "boxplot : forest fire area for different wind";
+plot logareap*wind;
+run;
+
+proc sort data=ff_e;
+by rain;
+RUN;
+
+proc boxplot data=ff_e;
+title "boxplot : forest fire area for different wind";
+plot logareap*rain;
+run;
+
+
+/*After looking at the scatterplots of all these predictors, we didn’t find any obvious non-linear trend so I will
+first simply considering including the linear terms.
+Last let us see if there is strong multi-colinearity in these continuous predictors*/
+
+proc corr data=ff_e;
+var FFMC DMC DC ISI temp RH wind rain;
+run;
+
+/*Only diagonal elements exceed 0.8, seems that we do not need to worry about multi-colinearity*/
+
+proc glm data=ff_e;
+class day season;
+model logareap=day season FFMC DMC DC ISI temp RH wind rain / solution ss3 ;
+title " log(area) ~ season day FFMC DMC DC ISI temp RH wind rain";
+run;
+
+/*As can be seen, the model fitting is terrible. This is not necessarily due to that we fit a bad model, it might
+simply because that the predictors we have do not have enough information to explain the responses.
+However, we decide to make one more try and hence we include the interaction terms between the four
+indices since we feel that the influece of these indices are not independent. We also include a quadratic term
+for wind and RH since we feel that the increase in fire area with respect to wind and the decrease in fire area
+with respect to humidity might be faster than linear*/
+
+DATA ff_f;
+set ff_e;
+wind_new=wind**2;
+RH_new=RH**2;
+RUN;
+
+proc print data=ff_f;
+run;
+
+proc glm data=ff_f;
+class day season ;
+model logareap=FFMC*DMC RH wind FFMC*DC FFMC*ISI DMC*DC DMC*ISI DC*ISI day season FFMC DMC DC ISI temp RH_new wind_new rain / solution ss3 ;
+title " log(area) ~ RH wind season day INTERACTION TERMS OF FFMC,DMC,ISI,DC FFMC DMC DC ISI temp RH wind rain";
+run;
+
+/*This seems to be much better compared to the first model, at least now we have a significant F test. But
+this model involves too many predicitor and with most of them not significant. So let us then do a
+backward, stepwise, forward selection*/
+
+
+proc glmselect data=ff_f;
+class day season ;
+model logareap=FFMC*DMC RH wind FFMC*DC FFMC*ISI DMC*DC DMC*ISI DC*ISI day season FFMC DMC DC ISI temp RH_new wind_new rain / selection=stepwise sls=0.05 sle=0.05 ;
+title " stepwise: log(area) ~ RH wind season day INTERACTION TERMS OF FFMC,DMC,ISI,DC FFMC DMC DC ISI temp RH wind rain";
+run;
+
+proc glmselect data=ff_f;
+class day season ;
+model logareap= RH wind FFMC*DMC FFMC*DC FFMC*ISI DMC*DC DMC*ISI DC*ISI day season FFMC DMC DC ISI temp RH_new wind_new rain / selection=backward sls=0.05 ;
+title " backward: log(area) ~ RH wind season day INTERACTION TERMS OF FFMC,DMC,ISI,DC FFMC DMC DC ISI temp RH wind rain";
+run;
+
+proc glmselect data=ff_f;
+class day season ;
+model logareap= RH wind FFMC*DMC FFMC*DC FFMC*ISI DMC*DC DMC*ISI DC*ISI day season FFMC DMC DC ISI temp RH_new wind_new rain / selection=forward sle=0.05 ;
+title " forward: log(area) ~ RH wind season day INTERACTION TERMS OF FFMC,DMC,ISI,DC FFMC DMC DC ISI temp RH wind rain";
+run;
+
+
+proc glm data=ff_f plots=(DIAGNOSTICS RESIDUALS)  ;
+class day season ;
+model logareap= FFMC*DMC season FFMC*DC DMC DC ISI RH wind RH_new wind_new DMC*DC /solution ss3 ;
+title " optimal: log(area) ~ FFMC*DMC season FFMC*DC DMC DC ISI RH wind RH_new wind_new DMC*DC";
+run;
+
+/*There is no obvious violation of model assumptions so we are good to go.*/
