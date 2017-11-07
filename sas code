@@ -245,6 +245,98 @@ run;
 first simply considering including the linear terms.
 Last let us see if there is strong multi-colinearity in these continuous predictors*/
 
+/*partial residual plots for all covariates needed!!! - we don't need to consider categorical variable */
+/*if the line is straight we can use the x variable as linear function*/
+
+proc reg data=ff_b plots=none outest=estcoeff;
+model logareap = FFMC DMC DC ISI temp RH wind rain;
+output out=residual R=e;
+run;
+
+proc print data=estcoeff; title "estcoeff of partial residual plots"; run;
+proc print  data=residual; title "regression of logareap on continuous var- partial residual plots"; run;
+
+data estcoeff_1;
+set estcoeff;
+array a[8] FFMC DMC DC ISI temp RH wind rain;
+array est[8] est1 est2 est3 est4 est5 est6 est7 est8;
+do i=1 to 8;
+est[i]=a[i];
+end;
+keep est1 est2 est3 est4 est5 est6 est7 est8;
+run;
+
+proc print data=estcoeff_1; title "estcoeff_1"; run;
+
+PROC SQL;
+CREATE TABLE residual_2 as
+SELECT * FROM residual, estcoeff_1;
+QUIT;
+PROC PRINT DATA=residual_2;
+TITLE 'Regression of area on continuous var - Residual & regression coefficient';
+RUN;
+
+DATA residual_2a;
+SET residual_2;
+
+ARRAY prx[8] prx1 prx2 prx3 prx4 prx5 prx6 prx7 prx8;
+ARRAY a[8] FFMC DMC DC ISI temp RH wind rain ;
+ARRAY est[8] est1 est2 est3 est4 est5 est6 est7 est8;
+
+DO i=1 to 8;
+prx[i]=e+est[i]*a[i];
+END;
+
+DROP i;
+RUN;
+
+PROC PRINT DATA=residual_2a;
+TITLE 'Partial Residual';
+RUN;
+
+
+PROC PLOT DATA=residual_2a ;
+PLOT prx1*FFMC=obs ;
+TITLE "Partial residual plot against FFMC ";
+RUN;
+
+PROC PLOT DATA=residual_2a ;
+PLOT prx2*DMC = obs;
+TITLE "Partial residual plot against DMC ";
+RUN;
+PROC PLOT DATA=residual_2a ;
+PLOT prx3*DC = obs;
+TITLE3 "Partial residual plot against FMC (Left)";
+RUN;
+PROC PLOT DATA=residual_2a ;
+PLOT prx4*ISI = obs;
+TITLE "Partial residual plot against ISI ";
+RUN;
+PROC PLOT DATA=residual_2a ;
+PLOT prx5*temp = obs;
+TITLE "Partial residual plot against temp ";
+RUN;
+PROC PLOT DATA=residual_2a ;
+PLOT prx6*RH = obs;
+TITLE "Partial residual plot against RH";
+RUN;
+PROC PLOT DATA=residual_2a ;
+PLOT prx7*wind = obs;
+TITLE "Partial residual plot against wind ";
+RUN;
+PROC PLOT DATA=residual_2a ;
+PLOT prx8*rain = obs;
+TITLE "Partial residual plot against rain ";
+RUN;
+
+
+/*vif without categorical variable*/
+
+PROC REG data=ff_e;
+model logareap=FFMC DMC DC ISI temp RH wind rain /tol vif collin;
+title "vif";
+run;
+
 proc corr data=ff_e;
 var FFMC DMC DC ISI temp RH wind rain;
 run;
@@ -306,7 +398,20 @@ run;
 proc glm data=ff_f plots=(DIAGNOSTICS RESIDUALS)  ;
 class day season ;
 model logareap= FFMC*DMC season FFMC*DC DMC DC ISI RH wind RH_new wind_new DMC*DC /solution ss3 ;
+output out=out1 h=leverage cookd=cookd;
 title " optimal: log(area) ~ FFMC*DMC season FFMC*DC DMC DC ISI RH wind RH_new wind_new DMC*DC";
 run;
 
+/*leverage point and cookd point */
+
+proc print data=out1;
+run;
+
+
 /*There is no obvious violation of model assumptions so we are good to go.*/
+
+
+/*should we remove influential points? */
+/*how can we see the data of influential points in the web? -> by looking cookd and leverage point*/
+/*test normality of the data at the last? -> graph is given  no worry */
+/*multicollinearity test have a look above set.*/
