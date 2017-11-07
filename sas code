@@ -42,7 +42,7 @@ run;
 paper the authors proposed to transform the responses using ln(y+1). But that does not solve the
 problem, as can be seen below*/
 
-proc univariate data=ff;
+proc univariate data=ff noprint;
 histogram logarea;
 title "area histogram 3 (log(area+1))";
 run;
@@ -176,8 +176,8 @@ proc sort data=ff_e;
 by FFMC;
 RUN;
 
-proc boxplot data=ff_e;
-title "boxplot : forest fire area for different ffmc";
+proc plot data=ff_e;
+title "plot : forest fire area for different ffmc";
 plot logareap*FFMC;
 run;
 
@@ -185,8 +185,8 @@ proc sort data=ff_e;
 by DMC;
 RUN;
 
-proc boxplot data=ff_e;
-title "boxplot : forest fire area for different DMC";
+proc plot data=ff_e;
+title "plot : forest fire area for different DMC";
 plot logareap*DMC;
 run;
 
@@ -194,8 +194,8 @@ proc sort data=ff_e;
 by DC;
 RUN;
 
-proc boxplot data=ff_e;
-title "boxplot : forest fire area for different DC";
+proc plot data=ff_e;
+title "plot : forest fire area for different DC";
 plot logareap*DC;
 run;
 
@@ -203,8 +203,8 @@ proc sort data=ff_e;
 by ISI;
 RUN;
 
-proc boxplot data=ff_e;
-title "boxplot : forest fire area for different ISI";
+proc plot data=ff_e;
+title "plot : forest fire area for different ISI";
 plot logareap*ISI;
 run;
 
@@ -212,8 +212,8 @@ proc sort data=ff_e;
 by temp;
 RUN;
 
-proc boxplot data=ff_e;
-title "boxplot : forest fire area for different temp";
+proc plot data=ff_e;
+title "plot : forest fire area for different temp";
 plot logareap*temp;
 run;
 
@@ -221,8 +221,8 @@ proc sort data=ff_e;
 by RH;
 RUN;
 
-proc boxplot data=ff_e;
-title "boxplot : forest fire area for different RH";
+proc plot data=ff_e;
+title "plot : forest fire area for different RH";
 plot logareap*RH;
 run;
 
@@ -230,8 +230,8 @@ proc sort data=ff_e;
 by wind;
 RUN;
 
-proc boxplot data=ff_e;
-title "boxplot : forest fire area for different wind";
+proc plot data=ff_e;
+title "plot : forest fire area for different wind";
 plot logareap*wind;
 run;
 
@@ -239,8 +239,8 @@ proc sort data=ff_e;
 by rain;
 RUN;
 
-proc boxplot data=ff_e;
-title "boxplot : forest fire area for different wind";
+proc plot data=ff_e;
+title "plot : forest fire area for different wind";
 plot logareap*rain;
 run;
 
@@ -402,9 +402,9 @@ run;
 
 proc glm data=ff_f plots=(DIAGNOSTICS RESIDUALS)  ;
 class day season ;
-model logareap= FFMC*DMC season FFMC*DC DMC DC ISI RH wind RH_new wind_new DMC*DC /solution ss3 ;
+model logareap= FFMC*DMC season FFMC*DC DMC DC  /solution ss3 ;
 output out=out1 h=leverage cookd=cookd;
-title " optimal: log(area) ~ FFMC*DMC season FFMC*DC DMC DC ISI RH wind RH_new wind_new DMC*DC";
+title " optimal: log(area) ~  FFMC*DMC season FFMC*DC DMC DC";
 run;
 
 /*leverage point and cookd point */
